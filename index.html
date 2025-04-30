@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Base de Datos de Usuarios</title>
+  <!-- Importar Bootstrap -->
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header class="text-center py-4">
+    <h1 class="text-primary">Gestión de Usuarios</h1>
+  </header>
+
+  <main>
+    <div class="container">
+      <!-- Formulario de Usuario -->
+      <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+          <div class="card shadow-lg p-4">
+            <h2 class="text-center text-primary mb-4">Formulario de Usuario</h2>
+            <form id="user-form">
+              <div class="form-group">
+                <label for="nombre">Nombre</label>
+                <input type="text" class="form-control" id="nombre" placeholder="Nombre" required />
+              </div>
+              <div class="form-group">
+                <label for="dni">DNI</label>
+                <input type="text" class="form-control" id="dni" placeholder="DNI" required />
+              </div>
+              <div class="form-group">
+                <label for="orientador">Orientador/a</label>
+                <input type="text" class="form-control" id="orientador" placeholder="Nombre del Orientador/a" />
+              </div>
+              <div class="form-group">
+                <label for="fechaInicio">Fecha de Inicio IPE</label>
+                <input type="date" class="form-control" id="fechaInicio" required />
+              </div>
+              <div class="form-group">
+                <label for="fechaFin">Fecha de Fin IPE</label>
+                <input type="date" class="form-control" id="fechaFin" required />
+              </div>
+              <div class="form-group">
+                <label for="resultadoIpe">Resultado IPE</label>
+                <select class="form-control" id="resultadoIpe" required>
+                  <option value="">Seleccionar Resultado</option>
+                  <option value="Positivo">Positivo</option>
+                  <option value="Negativo">Negativo</option>
+                  <option value="NP">NP</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">Guardar</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Buscador -->
+      <div class="row justify-content-center mt-5">
+        <div class="col-12 col-md-8 col-lg-6">
+          <h2 class="text-center text-primary mb-4">Buscar usuarios</h2>
+          <input type="text" id="buscador" class="form-control" placeholder="Buscar por nombre, email o DNI" />
+        </div>
+      </div>
+
+      <!-- Lista de Usuarios -->
+      <div class="row justify-content-center mt-5">
+        <div class="col-12 col-md-8 col-lg-6">
+          <h2 class="text-center text-primary mb-4">Lista de Usuarios</h2>
+          <ul id="user-list" class="user-grid"></ul>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Firebase SDK -->
+  <script type="module" src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app.js"></script>
+  <script type="module" src="https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore.js"></script>
+
+  <!-- Script para Firebase y funcionalidad -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBnq2-JxaYw697zpBRQiXqhNiwA9KGX_lw",
+      authDomain: "bbdd-usuarios.firebaseapp.com",
+      projectId: "bbdd-usuarios",
+      storageBucket: "bbdd-usuarios.firebasestorage.app",
+      messagingSenderId: "945433915987",
+      appId: "1:945433915987:web:e0fdd14678de48239e4ca6"
+    };
+
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const userForm = document.getElementById('user-form');
+    const userList = document.getElementById('user-list');
+
+    // Agregar usuario
+    userForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      const nombre = document.getElementById('nombre').value;
+      const dni = document.getElementById('dni').value;
+      const orientador = document.getElementById('orientador').value;
+      const fechaInicio = document.getElementById('fechaInicio').value;
+      const fechaFin = document.getElementById('fechaFin').value;
+      const resultadoIpe = document.getElementById('resultadoIpe').value;
+
+      if (!nombre || !dni || !fechaInicio || !fechaFin || !resultadoIpe) {
+        alert('Por favor, complete todos los campos.');
+        return;
+      }
+
+      const user = {
+        nombre,
+        dni,
+        orientador,
+        fechaInicio,
+        fechaFin,
+        resultadoIpe
+      };
+
+      try {
+        const docRef = await addDoc(collection(db, "usuarios"), user);
+        console.log("Usuario guardado con ID: ", docRef.id);
+        alert("Usuario guardado exitosamente.");
+        loadUsers(); // Recargar usuarios
+        userForm.reset();
+      } catch (e) {
+        console.error("Error al agregar el documento: ", e);
+      }
+    });
+
+    // Cargar usuarios desde Firestore
+    async function loadUsers() {
+      const querySnapshot = await getDocs(collection(db, "usuarios"));
+      userList.innerHTML = ''; // Limpiar antes de mostrar nuevos usuarios
+
+      querySnapshot.forEach((doc) => {
+        const user = doc.data();
+        const li = document.createElement('li');
+        li.classList.add('user-item');
+        li.innerHTML = `
+          <div class="card p-3 mb-3">
+            <strong>${user.nombre}</strong> - ${user.dni}
+            <p><strong>Orientador/a:</strong> ${user.orientador}</p>
+            <p><strong>Fecha Inicio IPE:</strong> ${user.fechaInicio}</p>
+            <p><strong>Fecha Fin IPE:</strong> ${user.fechaFin}</p>
+            <p><strong>Resultado IPE:</strong> ${user.resultadoIpe}</p>
+          </div>
+        `;
+        userList.appendChild(li);
+      });
+    }
+
+    // Cargar usuarios al iniciar
+    window.onload = loadUsers;
+  </script>
+  
+</body>
+</html>
