@@ -1,100 +1,115 @@
-// Importar funciones necesarias de Firebase
-import { getFirestore, collection, addDoc, getDocs } from "firebase/firestore"; 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore.js";
 
-// Inicializar Firestore
-const db = getFirestore(app); // Asegúrate de que 'app' está definido como el objeto de Firebase
+// Configuración de Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyBnq2-JxaYw697zpBRQiXqhNiwA9KGX_lw",
+  authDomain: "bbdd-usuarios.firebaseapp.com",
+  projectId: "bbdd-usuarios",
+  storageBucket: "bbdd-usuarios.firebasestorage.app",
+  messagingSenderId: "945433915987",
+  appId: "1:945433915987:web:e0fdd14678de48239e4ca6"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const userForm = document.getElementById('user-form');
 const userList = document.getElementById('user-list');
 
-// Función para agregar un usuario
-userForm.addEventListener('submit', async function(event) {
+userForm.addEventListener('submit', async (event) => {
   event.preventDefault();
 
   const nombre = document.getElementById('nombre').value;
   const dni = document.getElementById('dni').value;
-  const fechaInicioIpe = document.getElementById('fechaInicio').value;
-  const fechaFinIpe = document.getElementById('fechaFin').value;
-  const resultadoIpe = document.getElementById('resultadoIpe').value;
   const orientador = document.getElementById('orientador').value;
+  const fechaInicio = document.getElementById('fechaInicio').value;
+  const fechaFin = document.getElementById('fechaFin').value;
+  const resultadoIpe = document.getElementById('resultadoIpe').value;
 
-  if (!nombre || !dni || !fechaInicioIpe || !fechaFinIpe || !resultadoIpe || !orientador) {
+  if (!nombre || !dni || !fechaInicio || !fechaFin || !resultadoIpe || !orientador) {
     alert('Por favor, complete todos los campos.');
     return;
   }
 
-  // Generar el número de usuario (con 3 dígitos)
-  const numeroUsuario = String(userCount).padStart(3, '0');
-
-  // Crear objeto de usuario
   const user = {
-    numeroUsuario,
     nombre,
     dni,
-    fechaInicioIpe,
-    fechaFinIpe,
-    resultadoIpe,
     orientador,
+    fechaInicio,
+    fechaFin,
+    resultadoIpe
   };
 
-  // Guardar el usuario en Firestore
   try {
-    const docRef = await addDoc(collection(db, "usuarios"), user);  // 'usuarios' es la colección
-    console.log("Usuario guardado con ID: ", docRef.id);
+    await addDoc(collection(db, "usuarios"), user);
     alert("Usuario guardado exitosamente.");
-    userCount++;
     userForm.reset();
-    loadUsers(); // Recargar los usuarios para mostrar el nuevo
+    loadUsers();
   } catch (e) {
     console.error("Error al agregar el documento: ", e);
   }
 });
 
-// Función para cargar los usuarios desde Firestore y mostrar en la UI
+// Cargar usuarios desde Firestore
 async function loadUsers() {
   const querySnapshot = await getDocs(collection(db, "usuarios"));
-  userList.innerHTML = ''; // Limpiar la lista antes de mostrar los nuevos usuarios
-  querySnapshot.forEach((doc) => {
-    const user = doc.data();
-    addUserToList(user);
+  userList.innerHTML = '';
+
+  const row = document.createElement('div');
+  row.className = 'row';
+
+  let count = 0;
+
+  querySnapshot.forEach((docSnap) => {
+    const user = docSnap.data();
+    user.id = docSnap.id;
+
+    const col = document.createElement('div');
+    col.className = 'col-md-4 mb-4';
+
+    col.innerHTML = `
+      <div class="card h-100 shadow-sm p-3">
+        <h5 class="card-title">${user.nombre}</h5>
+        <p><strong>DNI:</strong> ${user.dni}</p>
+        <p><strong>Orientador/a:</strong> ${user.orientador}</p>
+        <p><strong>Inicio IPE:</strong> ${user.fechaInicio}</p>
+        <p><strong>Fin IPE:</strong> ${user.fechaFin}</p>
+        <p><strong>Resultado:</strong> ${user.resultadoIpe}</p>
+        <button class="btn btn-warning btn-sm edit-button mb-1">Editar</button>
+        <button class="btn btn-danger btn-sm delete-button">Eliminar</button>
+      </div>
+    `;
+
+    // Asignar eventos a botones
+    col.querySelector('.delete-button').addEventListener('click', () => deleteUser(user.id));
+    col.querySelector('.edit-button').addEventListener('click', () => alert('Función editar en desarrollo'));
+
+    row.appendChild(col);
+    count++;
+
+    if (count % 3 === 0) {
+      userList.appendChild(row.cloneNode(true));
+      row.innerHTML = '';
+    }
   });
+
+  if (row.children.length > 0) {
+    userList.appendChild(row);
+  }
 }
 
-// Función para agregar un usuario a la lista en la interfaz
-function addUserToList(user) {
-  const li = document.createElement('li');
-  li.classList.add('user-item');
-  li.innerHTML = `
-    <strong>${user.nombre}</strong> - ${user.dni}
-    <p>Orientador/a: ${user.orientador}</p>
-    <p>Fecha Inicio IPE: ${user.fechaInicioIpe}</p>
-    <p>Fecha Fin IPE: ${user.fechaFinIpe}</p>
-    <p>Resultado IPE: ${user.resultadoIpe}</p>
-    <p><strong>Número de Usuario:</strong> ${user.numeroUsuario}</p>
-    <button class="edit-button">Editar</button>
-    <button class="delete-button">Eliminar</button>
-  `;
-  
-  // Añadir los botones de edición y eliminación
-  const editButton = li.querySelector('.edit-button');
-  const deleteButton = li.querySelector('.delete-button');
-
-  editButton.addEventListener('click', () => editUser(user, li));
-  deleteButton.addEventListener('click', () => deleteUser(user, li));
-
-  // Añadir el nuevo elemento a la lista
-  userList.appendChild(li);
+// Eliminar usuario
+async function deleteUser(userId) {
+  if (confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
+    try {
+      await deleteDoc(doc(db, "usuarios", userId));
+      alert("Usuario eliminado.");
+      loadUsers();
+    } catch (error) {
+      console.error("Error al eliminar usuario: ", error);
+    }
+  }
 }
 
-// Función para eliminar un usuario
-function deleteUser(user, li) {
-  // Eliminar de Firestore
-  deleteDoc(doc(db, "usuarios", user.id));
-  
-  // Eliminar de la UI
-  users = users.filter(u => u.dni !== user.dni);
-  li.remove();
-}
-
-// Cargar los usuarios al cargar la página
 window.onload = loadUsers;
